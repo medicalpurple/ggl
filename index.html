@@ -76,7 +76,7 @@ body.is-sent .sent{display:block}
         <button type="button" class="dice" id="dice" aria-label="Suggest a question">🎲</button>
       </div>
       <input id="hp" name="website" tabindex="-1" autocomplete="off" aria-hidden="true" style="position:absolute;left:-9999px;opacity:0">
-      <div class="tip">🔒 ask q&amp;a</div>
+      <div class="tip">🔒 Anonymous q&amp;a</div>
       <button class="send" id="send" type="submit">Send!</button>
     </form>
     <div id="err" role="alert" class="tip" style="display:none"></div>
@@ -99,15 +99,40 @@ body.is-sent .sent{display:block}
 <script>
 const q=document.getElementById('q'),ph=document.getElementById('ph'),send=document.getElementById('send'),
   form=document.getElementById('form'),err=document.getElementById('err');
-const ideas=["how tall r u","what's your biggest fear?","what's your most-played song?","do you have a secret talent?","who was your first crush?","pineapple on pizza: yes or no?","what's one thing you'd change about yourself?","best trip you've ever taken?"];
-let i=0;
+const ideas=[
+  "how tall r u","what's your biggest fear?","what's your most-played song rn?",
+  "do you have a secret talent?","who was your first crush?","pineapple on pizza: yes or no?",
+  "what's one thing you'd change about yourself?","best trip you've ever taken?",
+  "what's the last thing you googled?","any plans for tomorrow?","cats or dogs?",
+  "what's your go-to comfort food?","what's the most embarrassing thing that's happened to you?",
+  "if you could live anywhere, where?","what's your dream job?","morning person or night owl?",
+  "best movie you've watched this year?","what's your biggest pet peeve?",
+  "what's a song you're embarrassed to love?","what's your zodiac sign?",
+  "what's your favorite memory?","what would you do with a million dollars?",
+  "what's your most used emoji?","worst gift you've ever gotten?","tea or coffee?",
+  "what's something you can't live without?","what's your love language?",
+  "what's a skill you wish you had?","what's the weirdest thing you believe in?",
+  "describe yourself in 3 words","what's your hot take?","what do you do when you can't sleep?",
+  "what are you most proud of?","if you were an animal, which one?",
+  "what's your favorite thing about me?","where do you want to travel next?",
+  "who do you text the most?","best advice you've ever got?",
+  "what's your guilty pleasure?","what's the last thing that made you laugh?"
+];
+let bag=[],last=ph.textContent;
+function nextIdea(){
+  if(!bag.length)bag=ideas.slice().sort(()=>Math.random()-.5);
+  let n=bag.pop();
+  if(n===last&&bag.length){bag.unshift(n);n=bag.pop()}
+  return last=n;
+}
 function sync(){ph.classList.toggle('gone',q.value.length>0);if(q.value.trim())err.style.display='none'}
 q.addEventListener('input',sync);
-document.getElementById('dice').addEventListener('click',()=>{
-  i=(i+1)%ideas.length;
-  // the dice swaps the placeholder suggestion; if empty, it also pre-fills it
-  ph.textContent=ideas[i];
-  if(!q.value){q.value=ideas[i];sync();q.focus()}
+const dice=document.getElementById('dice');
+dice.addEventListener('click',()=>{
+  ph.style.opacity=0;
+  setTimeout(()=>{ph.textContent=nextIdea();ph.style.opacity=''},150);
+  if(!matchMedia('(prefers-reduced-motion: reduce)').matches)
+    dice.animate([{transform:'rotate(0)'},{transform:'rotate(360deg)'}],{duration:350,easing:'ease-out'});
 });
 const cfg=window.APP_CONFIG,hp=document.getElementById('hp');
 function showErr(m){err.textContent=m;err.style.display='block'}
