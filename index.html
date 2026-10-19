@@ -76,7 +76,7 @@ body.is-sent .sent{display:block}
         <button type="button" class="dice" id="dice" aria-label="Suggest a question">🎲</button>
       </div>
       <input id="hp" name="website" tabindex="-1" autocomplete="off" aria-hidden="true" style="position:absolute;left:-9999px;opacity:0">
-      <div class="tip">🔒 Anonymous q&amp;a</div>
+      <div class="tip">🔒 anonymous q&amp;a</div>
       <button class="send" id="send" type="submit">Send!</button>
     </form>
     <div id="err" role="alert" class="tip" style="display:none"></div>
@@ -128,15 +128,26 @@ function nextIdea(){
 function sync(){ph.classList.toggle('gone',q.value.length>0);if(q.value.trim())err.style.display='none'}
 q.addEventListener('input',sync);
 const dice=document.getElementById('dice');
-dice.addEventListener('click',()=>{
+// gray placeholder: first question shows, then every 2s it fades to the next one (only while the box is empty)
+function swapPlaceholder(){
+  if(q.value||document.hidden||document.body.classList.contains('is-sent'))return;
   ph.style.opacity=0;
-  setTimeout(()=>{ph.textContent=nextIdea();ph.style.opacity=''},150);
+  setTimeout(()=>{ph.textContent=nextIdea();ph.style.opacity=''},300);
+}
+setInterval(swapPlaceholder,2000);
+// dice: types a completely random question into the box (black text), ready to send
+dice.addEventListener('click',()=>{
+  const pick=nextIdea(); // always a fresh random question
+  q.value=pick;
+  sync();
+  q.focus();
+  q.setSelectionRange(pick.length,pick.length);
   if(!matchMedia('(prefers-reduced-motion: reduce)').matches)
     dice.animate([{transform:'rotate(0)'},{transform:'rotate(360deg)'}],{duration:350,easing:'ease-out'});
 });
 const cfg=window.APP_CONFIG,hp=document.getElementById('hp');
 function showErr(m){err.textContent=m;err.style.display='block'}
-function done(){document.body.classList.add('is-sent')}
+function done(){q.value='';sync();document.body.classList.add('is-sent')}
 form.addEventListener('submit',async e=>{
   e.preventDefault();
   const text=q.value.trim();
@@ -163,9 +174,18 @@ form.addEventListener('submit',async e=>{
   }catch(x){showErr("Couldn't send your message. Try again in a moment.")}
   finally{send.disabled=false}
 });
+function resetForm(){
+  q.value='';err.style.display='none';
+  ph.textContent=ideas[0];last=ideas[0];bag=[]; // back to the default gray prompt
+  ph.style.opacity='';sync();
+}
 document.getElementById('again').addEventListener('click',()=>{
-  q.value='';sync();document.body.classList.remove('is-sent');q.focus();
+  resetForm();
+  document.body.classList.remove('is-sent');
+  q.focus();
 });
+// back/forward cache can restore stale text; always start blank
+addEventListener('pageshow',e=>{if(e.persisted)resetForm()});
 document.getElementById('own').addEventListener('click',e=>e.preventDefault());
 // ticking "friends tapped" counter
 setInterval(()=>{const n=document.getElementById('n');n.textContent=+n.textContent+(Math.random()<.4?1:0)},4000);
