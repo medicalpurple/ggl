@@ -85,7 +85,7 @@ function render(rows){
     const meta=document.createElement('div');meta.className='meta';
     const t=document.createElement('span');
     t.textContent=[new Date(m.created_at).toLocaleString(),
-      [m.device_type,m.os,m.browser].filter(Boolean).join(' / '),
+      [m.device_type,m.device_model,m.os,m.browser].filter(Boolean).join(' / '),
       [m.city,m.country].filter(Boolean).join(', '),
       m.ip].filter(Boolean).join(' · ');
     const d=document.createElement('button');d.className='del';d.textContent='Delete';

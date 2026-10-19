@@ -19,12 +19,13 @@ function parseUA(ua = '') {
   return { device, os, browser };
 }
 
+const clean = v => (typeof v === 'string' && v.trim()) ? v.trim().slice(0, 60) : null;
 const dec = v => { try { return v ? decodeURIComponent(v) : null; } catch { return v || null; } };
 
 module.exports = async (req, res) => {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
-  const { body, website } = req.body || {};
+  const { body, website, hints } = req.body || {};
   if (website) return res.status(200).json({ ok: true });            // honeypot
   const text = typeof body === 'string' ? body.trim() : '';
   if (!text || text.length > 300) return res.status(400).json({ error: 'Invalid message' });
@@ -46,7 +47,11 @@ module.exports = async (req, res) => {
     region: dec(h['x-vercel-ip-country-region']),
     city: dec(h['x-vercel-ip-city']),
     language: (h['accept-language'] || '').split(',')[0] || null,
-    referrer: h['referer'] || null
+    referrer: h['referer'] || null,
+    device_model: clean(hints?.model),
+    os_version: clean(hints?.osVersion),
+    screen: clean(hints?.screen),
+    timezone: clean(hints?.tz)
   };
 
   const r = await fetch(process.env.SUPABASE_URL + '/rest/v1/messages', {
