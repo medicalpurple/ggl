@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>Inbox</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;min-height:100vh;font:15px "Avenir Next",Helvetica,Arial,sans-serif;color:#000;
+  background:linear-gradient(to right bottom,#ec1187,#ff8d10) fixed;padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom)}
+.wrap{width:90%;max-width:640px;margin:0 auto;padding:32px 0}
+h1{color:#fff;font-size:24px;margin:0 0 16px;display:flex;justify-content:space-between;align-items:center}
+.card{background:#fff;border-radius:20px;padding:16px 18px;margin-bottom:12px}
+.card.unread{border-left:6px solid #000}
+.card p{margin:0 0 8px;font-size:18px;font-weight:600;white-space:pre-wrap;overflow-wrap:anywhere}
+.meta{display:flex;justify-content:space-between;align-items:center;color:#666;font-size:12px}
+button,input{font:inherit}
+button{border:0;border-radius:100px;padding:8px 14px;background:#000;color:#fff;font-weight:700;cursor:pointer}
+button.ghost{background:rgba(255,255,255,.25)}
+button.del{background:#eee;color:#b00020;padding:6px 12px}
+input{width:100%;padding:14px 16px;border:0;border-radius:14px;margin-bottom:10px}
+#login{max-width:360px;margin:12vh auto 0}
+#login button{width:100%;height:52px}
+.note{color:#fff;text-align:center;margin-top:24px}
+:focus-visible{outline:3px solid #fff;outline-offset:2px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <form id="login" class="card">
+    <h2 style="margin-top:0">Inbox login</h2>
+    <input id="email" type="email" placeholder="Email" autocomplete="username" required>
+    <input id="pw" type="password" placeholder="Password" autocomplete="current-password" required>
+    <button type="submit">Sign in</button>
+    <p id="lerr" role="alert" style="color:#b00020;margin:10px 0 0"></p>
+  </form>
+
+  <div id="app" hidden>
+    <h1><span>Your messages <span id="count"></span></span>
+      <span><button class="ghost" id="refresh">Refresh</button> <button class="ghost" id="out">Sign out</button></span></h1>
+    <div id="list"></div>
+    <p class="note" id="empty" hidden>No messages yet. Share your link!</p>
+  </div>
+</div>
+
+<script src="config.js"></script>
+<script>
+const {SUPABASE_URL:URL_,SUPABASE_ANON_KEY:KEY}=window.APP_CONFIG;
+const $=id=>document.getElementById(id);
+let token=sessionStorage.getItem('tok');
+
+const api=(path,opt={})=>fetch(URL_+path,{...opt,headers:{apikey:KEY,Authorization:'Bearer '+token,'Content-Type':'application/json',...(opt.headers||{})}});
+
+function show(loggedIn){$('login').hidden=loggedIn;$('app').hidden=!loggedIn}
+
+$('login').addEventListener('submit',async e=>{
+  e.preventDefault();$('lerr').textContent='';
+  const r=await fetch(URL_+'/auth/v1/token?grant_type=password',{method:'POST',
+    headers:{apikey:KEY,'Content-Type':'application/json'},
+    body:JSON.stringify({email:$('email').value,password:$('pw').value})});
+  const j=await r.json();
+  if(!r.ok){$('lerr').textContent=j.error_description||j.msg||'Sign-in failed.';return}
+  token=j.access_token;sessionStorage.setItem('tok',token);$('pw').value='';load();
+});
+
+$('out').onclick=()=>{sessionStorage.removeItem('tok');token=null;show(false)};
+$('refresh').onclick=()=>load();
+
+async function load(){
+  const r=await api('/rest/v1/messages?select=*&order=created_at.desc');
+  if(r.status===401||r.status===403){sessionStorage.removeItem('tok');show(false);return}
+  const rows=await r.json();
+  show(true);render(rows);
+}
+
+function render(rows){
+  const list=$('list');list.replaceChildren();
+  $('empty').hidden=rows.length>0;
+  const unread=rows.filter(m=>!m.is_read).length;
+  $('count').textContent=rows.length?`(${unread} new)`:'';
+  for(const m of rows){
+    const c=document.createElement('div');c.className='card'+(m.is_read?'':' unread');
+    const p=document.createElement('p');p.textContent=m.body; // textContent => no XSS
+    const meta=document.createElement('div');meta.className='meta';
+    const t=document.createElement('span');
+    t.textContent=[new Date(m.created_at).toLocaleString(),
+      [m.device_type,m.os,m.browser].filter(Boolean).join(' / '),
+      [m.city,m.country].filter(Boolean).join(', '),
+      m.ip].filter(Boolean).join(' · ');
+    const d=document.createElement('button');d.className='del';d.textContent='Delete';
+    d.onclick=async()=>{if(!confirm('Delete this message?'))return;
+      await api('/rest/v1/messages?id=eq.'+m.id,{method:'DELETE'});load()};
+    meta.append(t,d);c.append(p,meta);list.append(c);
+    if(!m.is_read){c.addEventListener('click',async()=>{
+      await api('/rest/v1/messages?id=eq.'+m.id,{method:'PATCH',body:JSON.stringify({is_read:true}),headers:{Prefer:'return=minimal'}});
+      c.classList.remove('unread')},{once:true})}
+  }
+}
+if(token)load();else show(false);
+</script>
+</body>
+</html>
